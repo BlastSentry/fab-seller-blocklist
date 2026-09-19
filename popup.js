@@ -14,17 +14,36 @@ let keywords = [];
 let reloadOnChange = true;
 let currentSeller = null;
 
-const load = () =>
-  new Promise((resolve) =>
-    chrome.storage.sync.get({ [STORAGE_KEY]: [], [KEYWORDS_KEY]: [], [RELOAD_KEY]: true }, (res) => {
-      blocked = [...new Set((res[STORAGE_KEY] || []).map(normalize))].sort();
-      keywords = [...new Set((res[KEYWORDS_KEY] || []).map(normalize).filter(Boolean))].sort();
-      reloadOnChange = res[RELOAD_KEY] !== false;
-      resolve();
-    })
-  );
+const load = async () => {
+  const res = await FabStorage.load();
+  blocked = [...new Set((res[STORAGE_KEY] || []).map(normalize))].sort();
+  keywords = [...new Set((res[KEYWORDS_KEY] || []).map(normalize).filter(Boolean))].sort();
+  reloadOnChange = res[RELOAD_KEY] !== false;
+};
 
-const save = () => chrome.storage.sync.set({ [STORAGE_KEY]: blocked, [KEYWORDS_KEY]: keywords });
+const save = () => FabStorage.save({ [STORAGE_KEY]: blocked, [KEYWORDS_KEY]: keywords });
+const setBusy = (busy) => document.querySelectorAll('button, input, textarea').forEach(el => { el.disabled = busy; });
+const showError = (message) => {
+  $('error').textContent = message;
+  $('error').hidden = !message;
+};
+
+const persist = async (write, reload) => {
+  setBusy(true);
+  showError('');
+  try {
+    await write();
+  } catch (error) {
+    let recovered = false;
+    try { await load(); render(); recovered = true; } catch (_) {}
+    setBusy(!recovered);
+    showError('Could not save changes. ' + error.message + (recovered ? ' Please try again.' : ' Reopen the extension to retry.'));
+    return false;
+  }
+  if (reload) await reloadFabTab();
+  setBusy(false);
+  return true;
+};
 
 // Reload the active tab if it is a Fab page, so the change shows up immediately.
 const reloadFabTab = () =>
@@ -37,11 +56,11 @@ const reloadFabTab = () =>
     });
   });
 
-const saveAndReload = () => save().then(() => (reloadOnChange ? reloadFabTab() : undefined));
+const saveAndReload = () => persist(save, reloadOnChange);
 
 $('reloadToggle').addEventListener('change', (e) => {
   reloadOnChange = e.target.checked;
-  chrome.storage.sync.set({ [RELOAD_KEY]: reloadOnChange });
+  persist(() => FabStorage.save({ [RELOAD_KEY]: reloadOnChange }), false);
 });
 
 const renderList = (ul, items, emptyText, onRemove) => {
@@ -146,7 +165,7 @@ const showIO = (text, applyMode) => {
   $('ioActions').hidden = !applyMode;
   if (!applyMode) {
     ta.select();
-    try { navigator.clipboard.writeText(text); } catch (_) {}
+    navigator.clipboard?.writeText(text).catch(() => showError('Copy failed. Select and copy the text below.'));
   } else {
     ta.focus();
   }
@@ -162,7 +181,7 @@ $('ioApply').addEventListener('click', () => {
   const newKeywords = lines.filter((l) => /^kw:/i.test(l)).map((l) => normalize(l.slice(3)));
   blocked = [...new Set([...blocked, ...newSellers])].sort();
   keywords = [...new Set([...keywords, ...newKeywords].filter(Boolean))].sort();
-  saveAndReload().then(() => { render(); hideIO(); });
+  saveAndReload().then((saved) => { if (saved) { render(); hideIO(); } });
 });
 
 // Ask the active Fab tab which seller its page belongs to
@@ -178,7 +197,9 @@ const queryCurrentSeller = () =>
     });
   });
 
+setBusy(true);
 Promise.all([load(), queryCurrentSeller()]).then(([, seller]) => {
   currentSeller = seller;
   render();
-});
+  setBusy(false);
+}).catch(error => showError('Could not load your blocklist. ' + error.message + ' Reopen the extension to retry.'));

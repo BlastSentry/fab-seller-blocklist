@@ -16,6 +16,8 @@ Hover a seller's name → click **Block**.
 
 Open the extension's toolbar icon. Add/remove sellers, block keywords, or import/export lists.
 
+Lists stay in this browser; use export/import to move them. Existing lists migrate automatically.
+
 ![Seller and keyword controls in the toolbar popup](Toolbar.jpg)
 
 ## Install

@@ -1,7 +1,6 @@
 // Fab Seller Blocklist - content script
-// Runs at document_start so the MutationObserver is attached before the
-// React app renders any listing cards. Blocked cards get their <img> src
-// removed before the browser issues the request, then the whole card is hidden.
+// Hides matching cards once settings load. Removing media sources is best-effort:
+// the browser may already have started downloading thumbnails.
 
 (() => {
   const STORAGE_KEY = 'blockedSellers';
@@ -26,21 +25,15 @@
   };
 
   // ---------- storage ----------
-  const load = () =>
-    new Promise((resolve) => {
-      chrome.storage.sync.get({ [STORAGE_KEY]: [], [KEYWORDS_KEY]: [], [RELOAD_KEY]: true }, (res) => {
-        blocked = new Set((res[STORAGE_KEY] || []).map(normalize));
-        keywords = (res[KEYWORDS_KEY] || []).map(normalize).filter(Boolean);
-        reloadOnChange = res[RELOAD_KEY] !== false;
-        resolve();
-      });
-    });
-
-  const save = () =>
-    chrome.storage.sync.set({ [STORAGE_KEY]: [...blocked].sort() });
+  const load = async () => {
+    const res = await FabStorage.load();
+    blocked = new Set((res[STORAGE_KEY] || []).map(normalize));
+    keywords = (res[KEYWORDS_KEY] || []).map(normalize).filter(Boolean);
+    reloadOnChange = res[RELOAD_KEY] !== false;
+  };
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'sync') return;
+    if (area !== 'local') return;
     if (changes[RELOAD_KEY]) reloadOnChange = changes[RELOAD_KEY].newValue !== false;
     let dirty = false;
     if (changes[STORAGE_KEY]) {
@@ -182,14 +175,18 @@
     link.insertAdjacentElement('afterend', btn);
   };
 
-  const toggleSeller = (seller) => {
-    if (blocked.has(seller)) blocked.delete(seller);
-    else blocked.add(seller);
-    // Persist. If enabled, reload so the grid refills with fresh listings;
-    // otherwise the onChanged listener hides/restores cards in place.
-    Promise.resolve(save()).then(() => {
+  const reportError = (error) => {
+    console.error('Fab Seller Blocklist:', error);
+    alert('Fab Seller Blocklist: ' + error.message + '\nYour saved blocklist has not been changed.');
+  };
+
+  const toggleSeller = async (seller) => {
+    try {
+      await FabStorage.toggleSeller(seller);
       if (reloadOnChange) location.reload();
-    });
+    } catch (error) {
+      reportError(error);
+    }
   };
 
   // ---------- page-level: seller profile and listing detail ----------
@@ -228,9 +225,12 @@
       if (existing) existing.remove();
       return;
     }
-    if (existing) return;
+    const reason = sellerBlocked ? 'seller:' + seller : 'keyword:' + kw;
+    if (existing?.dataset.fsbReason === reason) return;
+    if (existing) existing.remove();
     const banner = document.createElement('div');
     banner.className = 'fsb-banner';
+    banner.dataset.fsbReason = reason;
     const text = document.createElement('span');
     text.textContent = sellerBlocked
       ? 'Seller "' + seller + '" is on your blocklist.'
@@ -258,7 +258,8 @@
       counterEl.className = 'fsb-counter';
       document.body.appendChild(counterEl);
     }
-    counterEl.textContent = hiddenCount + ' listing' + (hiddenCount === 1 ? '' : 's') + ' hidden';
+    const text = hiddenCount + ' listing' + (hiddenCount === 1 ? '' : 's') + ' hidden';
+    if (counterEl.textContent !== text) counterEl.textContent = text;
   };
 
   // ---------- scanning ----------
@@ -320,7 +321,7 @@
     };
     if (document.body) start();
     else document.addEventListener('DOMContentLoaded', start, { once: true });
-  });
+  }).catch(reportError);
 
   // Messages from the popup ("which seller is this page?")
   chrome.runtime.onMessage.addListener((msg, _sender, respond) => {

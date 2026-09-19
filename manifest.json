@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Fab Seller Blocklist",
-  "version": "0.1.0",
-  "description": "Hide listings from sellers you put on a blocklist while browsing fab.com. Blocked cards never load their thumbnails.",
+  "version": "0.1.1",
+  "description": "Hide Fab listings from blocked sellers or matching keywords.",
+  "background": { "service_worker": "background.js" },
   "permissions": [
     "storage",
     "activeTab"
@@ -27,6 +28,7 @@
         "https://fab.com/*"
       ],
       "js": [
+        "storage.js",
         "content.js"
       ],
       "css": [

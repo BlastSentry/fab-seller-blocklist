@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <title>Fab Seller Blocklist</title>
 <style>
+  [hidden] { display: none !important; }
+  #error { color: #ffb3b3; }
   :root { color-scheme: dark; }
   body { width: 320px; margin: 0; padding: 12px; font: 13px/1.4 system-ui, sans-serif; background: #1b1b1f; color: #eee; }
   h1 { font-size: 14px; margin: 0 0 10px; }
@@ -29,6 +31,7 @@
 </style>
 </head>
 <body>
+  <p id="error" role="alert" hidden></p>
   <h1>Blocked sellers <span id="count" class="muted"></span></h1>
 
   <div id="current">
@@ -66,6 +69,7 @@
     <button id="ioCancel">Cancel</button>
   </div>
 
+  <script src="storage.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
