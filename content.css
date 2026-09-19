@@ -6,7 +6,14 @@
 /* Inline block/unblock button next to seller links */
 .fsb-btn {
   display: inline-block;
-  margin-left: 6px;
+  /* Keep Fab's flex/grid card layouts from stretching the button. */
+  width: max-content !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+  align-self: flex-start !important;
+  justify-self: start !important;
+  white-space: nowrap;
+  margin-left: 0;
   padding: 0 6px;
   font-size: 11px;
   line-height: 16px;

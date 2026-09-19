@@ -1,8 +1,22 @@
 # Fab Seller Blocklist
 
-Chromium browser extension (Manifest V3) that hides listings from sellers you put on a blocklist
-while browsing https://www.fab.com. Blocked cards have their thumbnail `src` removed
-before the browser requests it, then the whole card is hidden.
+FAB is flooded with practically useless assets that makes discovery of nice assets almost impossible.
+
+With this browser extension you can easily block sellers so they never show up when browsing FAB.
+
+I don't understand why FAB didn't make this feature or curate their marketplace more. The argument of empowering creators doesn't hold up when the actual proper creators drown in trash.
+
+## Block a seller while browsing
+
+Hover over a seller's name on a listing card to reveal **Block**, then click it to hide listings from that seller.
+
+![The Block button below a seller's name, highlighted with a blue arrow](BlockEm.jpg)
+
+## Manage your blocklist from the toolbar
+
+Click the extension's icon in your browser toolbar to open this panel. Add or remove sellers, block keywords in listing titles, and import or export your lists. Use **Remove** to let a seller's listings appear again.
+
+![Extension toolbar panel with blocked sellers, blocked keywords, reload preference, and import and export controls](Toolbar.jpg)
 
 ## Browser compatibility
 
