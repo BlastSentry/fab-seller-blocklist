@@ -1,24 +1,13 @@
-Fab Seller Blocklist  (v0.1.0)
-Hides listings on fab.com from sellers or keywords you choose. Unofficial, not affiliated with Epic Games.
-Lists are stored in your browser's extension storage. Syncing depends on browser settings.
+FAB SELLER BLOCKLIST
+Chrome, Edge, Brave, Opera (Chromium). Firefox/Safari not supported.
 
-BROWSERS
-Designed for Chromium browsers, including Chrome, Edge, Brave, and Opera.
-Firefox and Safari are not currently tested or supported.
-
-INSTALL (Chromium browsers)
-1. Unzip this file somewhere permanent (e.g. Documents\fab-seller-blocklist). Do not delete the folder afterwards.
-2. Go to  chrome://extensions   (edge://extensions on Edge)
-3. Turn on "Developer mode" (top right)
-4. Click "Load unpacked" and select the unzipped folder
-5. Open https://www.fab.com and browse as usual
+INSTALL
+1. Extract the ZIP and keep the folder.
+2. Open your browser's Extensions page. Enable Developer mode.
+3. Click Load unpacked. Select the folder containing manifest.json.
 
 USE
-- Hover a seller name on any card -> click "Block". The page reloads without that seller.
-- Toolbar icon -> popup: manage blocked sellers, add keywords (e.g. "metahuman" hides any
-  listing whose title contains it), import/export lists, toggle the auto-reload.
-- Blocked cards never download their thumbnails.
+Hover a seller's name -> Block.
+Toolbar icon -> manage sellers, keywords, import/export.
 
-NOTES
-- Chrome shows a "Disable developer mode extensions" prompt on startup. Click "Keep" or close it.
-- If Fab changes its page layout the filter may stop working until updated.
+Unofficial; not affiliated with Epic Games.
