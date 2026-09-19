@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Fab Seller Blocklist",
+  "version": "0.1.0",
+  "description": "Hide listings from sellers you put on a blocklist while browsing fab.com. Blocked cards never load their thumbnails.",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://www.fab.com/*",
+    "https://fab.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Fab Seller Blocklist",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.fab.com/*",
+        "https://fab.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
