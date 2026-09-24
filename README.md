@@ -28,4 +28,9 @@ For **Chrome, Edge, Brave, and Opera** (Chromium). Firefox/Safari not supported.
 2. Open your browser's **Extensions** page → enable **Developer mode**.
 3. **Load unpacked** → select the extracted folder containing `manifest.json`.
 
+After updating or reloading the extension, refresh any open Fab tabs too. An
+"Extension context invalidated" error means the tab is still running the old
+copy of the extension; refresh the Fab page and retry the action. Your saved
+blocklist stays in browser storage.
+
 Unofficial; not affiliated with Epic Games.

@@ -11,6 +11,7 @@
   let reloadOnChange = true;
   let hiddenCount = 0;
   let counterEl = null;
+  let contextInvalidated = false;
 
   const normalize = (name) => {
     let s = String(name || '');
@@ -176,11 +177,36 @@
   };
 
   const reportError = (error) => {
+    if (contextInvalidated) return;
+    if (error.code === 'FSB_CONTEXT_INVALIDATED' || /extension context invalidated/i.test(error.message || '')) {
+      contextInvalidated = true;
+      observer.disconnect();
+      clearInterval(navigationTimer);
+      document.querySelectorAll('.fsb-btn, .fsb-banner').forEach((el) => el.remove());
+      const showRefresh = () => {
+        const banner = document.createElement('div');
+        banner.className = 'fsb-banner';
+        banner.setAttribute('role', 'alert');
+        const text = document.createElement('span');
+        text.textContent = 'Fab Seller Blocklist was reloaded or disconnected. Refresh this page to reconnect, then try blocking again.';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = 'Refresh Fab';
+        btn.addEventListener('click', () => location.reload());
+        banner.appendChild(text);
+        banner.appendChild(btn);
+        document.body.prepend(banner);
+      };
+      if (document.body) showRefresh();
+      else document.addEventListener('DOMContentLoaded', showRefresh, { once: true });
+      return;
+    }
     console.error('Fab Seller Blocklist:', error);
     alert('Fab Seller Blocklist: ' + error.message + '\nYour saved blocklist has not been changed.');
   };
 
   const toggleSeller = async (seller) => {
+    if (contextInvalidated) return;
     try {
       await FabStorage.toggleSeller(seller);
       if (reloadOnChange) location.reload();
@@ -216,6 +242,7 @@
   };
 
   const updateBanner = () => {
+    if (contextInvalidated) return;
     if (!document.body) return;
     const seller = currentPageSeller();
     const kw = matchKeyword(currentPageTitle());
@@ -264,12 +291,14 @@
 
   // ---------- scanning ----------
   const scan = (root) => {
+    if (contextInvalidated) return;
     if (!root || !root.querySelectorAll) return;
     root.querySelectorAll('a[href*="/sellers/"]').forEach(processSellerLink);
     if (root.matches && root.matches('a[href*="/sellers/"]')) processSellerLink(root);
   };
 
   const rescan = (full) => {
+    if (contextInvalidated) return;
     if (full) {
       hiddenCount = 0;
       document.querySelectorAll('.fsb-hidden').forEach((card) => {
@@ -304,7 +333,7 @@
 
   // SPA navigation: re-evaluate the banner and counter on URL changes
   let lastPath = location.pathname;
-  setInterval(() => {
+  const navigationTimer = setInterval(() => {
     if (location.pathname !== lastPath) {
       lastPath = location.pathname;
       hiddenCount = document.querySelectorAll('.fsb-hidden').length;

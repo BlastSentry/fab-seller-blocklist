@@ -127,6 +127,7 @@ test('banner updates seller and unblock target; unchanged state does not replace
   }
   const context = vm.createContext({
     document: { body: { prepend(el) { banner = el; } }, querySelector: () => banner, createElement: element },
+    contextInvalidated: false,
     blocked: new Set(['first', 'second']),
     currentPageSeller: () => seller, currentPageTitle: () => '', matchKeyword: () => keyword,
     toggleSeller: value => { toggled = value; }
@@ -167,4 +168,110 @@ test('popup rolls back failed saves, shows an error, and skips reload', async ()
   assert.equal(reloads, 0);
   assert.equal(busy, false);
   assert.match(error, /Could not save changes.*Disk full/);
+});
+
+for (const failure of ['invalidated', 'missing runtime', 'runtime removed during send']) {
+test(`disconnected content script offers refresh once and stops stale writes: ${failure}`, async () => {
+  const script = source('content.js');
+  const handling = script.slice(script.indexOf('  const reportError ='), script.indexOf('  // ---------- page-level'));
+  let banner, writes = 0, reloads = 0, disconnects = 0, cleared, removed = 0;
+  const errors = [], alerts = [];
+  const context = vm.createContext({
+    contextInvalidated: false, reloadOnChange: true, navigationTimer: 42,
+    observer: { disconnect() { disconnects++; } },
+    clearInterval(id) { cleared = id; },
+    console: { error(...args) { errors.push(args); } }, alert: text => alerts.push(text),
+    location: { reload() { reloads++; } },
+    chrome: failure === 'missing runtime' ? {} : {
+      runtime: {
+        id: 'test-extension',
+        async sendMessage() {
+          writes++;
+          if (failure === 'runtime removed during send') {
+            delete context.chrome.runtime;
+            throw new TypeError("Cannot read properties of undefined (reading 'sendMessage')");
+          }
+          throw new Error('Extension context invalidated.');
+        }
+      }
+    },
+    document: {
+      body: { prepend(el) { assert.equal(banner, undefined); banner = el; } },
+      querySelectorAll() { return [{ remove() { removed++; } }]; },
+      createElement() {
+        return {
+          children: [], listeners: {}, attributes: {},
+          setAttribute(key, value) { this.attributes[key] = value; },
+          appendChild(child) { this.children.push(child); },
+          addEventListener(name, fn) { this.listeners[name] = fn; }
+        };
+      }
+    }
+  });
+  vm.runInContext(source('storage.js'), context);
+  await vm.runInContext(handling + 'toggleSeller("seller")', context);
+  await vm.runInContext('toggleSeller("seller")', context);
+  vm.runInContext('reportError(new Error("Extension context invalidated."))', context);
+  const updateBanner = script.slice(script.indexOf('  const updateBanner ='), script.indexOf('  // ---------- counter'));
+  vm.runInContext(updateBanner + 'updateBanner()', context);
+  assert.equal(writes, failure === 'missing runtime' ? 0 : 1);
+  assert.equal(disconnects, 1);
+  assert.equal(cleared, 42);
+  assert.equal(removed, 1);
+  assert.equal(errors.length, 0);
+  assert.equal(alerts.length, 0);
+  assert.equal(reloads, 0);
+  assert.equal(banner.attributes.role, 'alert');
+  assert.match(banner.children[0].textContent, /Refresh this page/);
+  assert.equal(banner.children[1].textContent, 'Refresh Fab');
+  banner.children[1].listeners.click();
+  assert.equal(reloads, 1);
+});
+}
+
+test('storage reports disconnected APIs for load, save, and toggle', async () => {
+  for (const chrome of [undefined, {}, { runtime: {} }, { runtime: { id: 'test-extension' } }]) {
+    const context = vm.createContext({ chrome });
+    vm.runInContext(source('storage.js'), context);
+    for (const call of ['FabStorage.load()', 'FabStorage.save({ blockedSellers: [] })', 'FabStorage.toggleSeller("seller")']) {
+      await assert.rejects(vm.runInContext(call, context), error =>
+        error.code === 'FSB_CONTEXT_INVALIDATED' && /Refresh the Fab page/.test(error.message));
+    }
+  }
+});
+
+test('storage keeps normal responses and failures distinct from disconnection', async () => {
+  let response = { settings: { blockedSellers: ['seller'] } }, calls = 0, reject = false;
+  const context = vm.createContext({
+    chrome: { runtime: { id: 'test-extension', async sendMessage(message) {
+      calls++;
+      assert.equal(message.type, 'fsb:storage');
+      if (reject) throw new Error('Could not establish connection. Receiving end does not exist.');
+      return response;
+    } } }
+  });
+  vm.runInContext(source('storage.js'), context);
+  assert.deepEqual(plain(await vm.runInContext('FabStorage.load()', context)), response.settings);
+  response = { error: 'Disk full' };
+  await assert.rejects(vm.runInContext('FabStorage.save({})', context), /Disk full/);
+  reject = true;
+  await assert.rejects(vm.runInContext('FabStorage.toggleSeller("seller")', context), error =>
+    !error.code && /Receiving end does not exist/.test(error.message));
+  assert.equal(calls, 3);
+});
+
+test('ordinary storage errors still report failure without disconnecting the script', async () => {
+  const script = source('content.js');
+  const handling = script.slice(script.indexOf('  const reportError ='), script.indexOf('  // ---------- page-level'));
+  let message, logged;
+  const context = vm.createContext({
+    contextInvalidated: false, reloadOnChange: true,
+    FabStorage: { async toggleSeller() { throw new Error('Disk full'); } },
+    console: { error(_label, error) { logged = error.message; } },
+    alert(text) { message = text; }
+  });
+  await vm.runInContext(handling + 'toggleSeller("seller")', context);
+  assert.equal(context.contextInvalidated, false);
+  assert.equal(logged, 'Disk full');
+  assert.match(message, /Disk full/);
 });
