@@ -24,5 +24,8 @@ globalThis.FabStorage = {
   },
   load() { return this.request('load'); },
   save(values) { return this.request('save', { values }); },
-  toggleSeller(seller) { return this.request('toggleSeller', { seller }); }
+  toggleSeller(seller) { return this.request('toggleSeller', { seller }); },
+  listBackups() { return this.request('listBackups'); },
+  restoreBackup(id) { return this.request('restoreBackup', { id }); },
+  restoreFile(settings) { return this.request('restoreFile', { settings }); }
 };

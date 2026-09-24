@@ -13,16 +13,20 @@ let blocked = [];
 let keywords = [];
 let reloadOnChange = true;
 let currentSeller = null;
+let busy = true;
 
-const load = async () => {
-  const res = await FabStorage.load();
+const applySettings = (res) => {
   blocked = [...new Set((res[STORAGE_KEY] || []).map(normalize))].sort();
   keywords = [...new Set((res[KEYWORDS_KEY] || []).map(normalize).filter(Boolean))].sort();
   reloadOnChange = res[RELOAD_KEY] !== false;
 };
+const load = async () => applySettings(await FabStorage.load());
 
 const save = () => FabStorage.save({ [STORAGE_KEY]: blocked, [KEYWORDS_KEY]: keywords });
-const setBusy = (busy) => document.querySelectorAll('button, input, textarea').forEach(el => { el.disabled = busy; });
+const setBusy = (value) => {
+  busy = value;
+  document.querySelectorAll('button, input, textarea').forEach(el => { el.disabled = value; });
+};
 const showError = (message) => {
   $('error').textContent = message;
   $('error').hidden = !message;
@@ -40,6 +44,7 @@ const persist = async (write, reload) => {
     showError('Could not save changes. ' + error.message + (recovered ? ' Please try again.' : ' Reopen the extension to retry.'));
     return false;
   }
+  await refreshBackups();
   if (reload) await reloadFabTab();
   setBusy(false);
   return true;
@@ -76,6 +81,7 @@ const renderList = (ul, items, emptyText, onRemove) => {
     const span = document.createElement('span');
     span.textContent = name;
     const btn = document.createElement('button');
+    btn.disabled = busy;
     btn.textContent = 'Remove';
     btn.addEventListener('click', () => {
       onRemove(name);
@@ -182,6 +188,83 @@ $('ioApply').addEventListener('click', () => {
   blocked = [...new Set([...blocked, ...newSellers])].sort();
   keywords = [...new Set([...keywords, ...newKeywords].filter(Boolean))].sort();
   saveAndReload().then((saved) => { if (saved) { render(); hideIO(); } });
+});
+
+// ---------- backups ----------
+const refreshBackups = async () => {
+  if (!$('backups').open) return;
+  try {
+    const { backups } = await FabStorage.listBackups();
+    const list = $('backupList');
+    list.innerHTML = '';
+    if (!backups.length) {
+      const li = document.createElement('li');
+      li.className = 'empty';
+      li.textContent = 'No previous versions yet. One will be saved before your next change.';
+      list.appendChild(li);
+    }
+    for (const backup of backups) {
+      const li = document.createElement('li');
+      const label = document.createElement('span');
+      const counts = backup.settings.blockedSellers.length + ' sellers, ' + backup.settings.blockedKeywords.length + ' keywords';
+      label.textContent = new Date(backup.createdAt).toLocaleString() + ' — ' + counts;
+      const btn = document.createElement('button');
+      btn.textContent = 'Restore';
+      btn.disabled = busy;
+      btn.addEventListener('click', () => restoreBackup(() => FabStorage.restoreBackup(backup.id), counts));
+      li.append(label, btn);
+      list.appendChild(li);
+    }
+  } catch (error) {
+    $('backupStatus').textContent = 'Could not load previous versions. ' + error.message;
+  }
+};
+
+const restoreBackup = async (write, description) => {
+  if (busy || !confirm('Replace your current list and settings with this backup (' + description + ')? Your current list will be saved as a restore point.')) return;
+  const saved = await persist(async () => {
+    applySettings(await write());
+    render();
+  }, reloadOnChange);
+  if (saved) $('backupStatus').textContent = 'Backup restored. Your previous list is available below.';
+};
+
+$('backups').addEventListener('toggle', refreshBackups);
+$('downloadBackup').addEventListener('click', async () => {
+  if (busy) return;
+  setBusy(true);
+  showError('');
+  try {
+    // Read persisted settings so another tab's recent blocks are included.
+    const json = FabBackup.stringify(await FabStorage.load());
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'fab-blocklist-backup-' + new Date().toISOString().replace(/[:.]/g, '-') + '.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    $('backupStatus').textContent = 'Backup download started. Keep the file somewhere safe.';
+  } catch (error) {
+    showError('Could not download a backup. ' + error.message);
+  } finally {
+    setBusy(false);
+  }
+});
+$('restoreFile').addEventListener('click', () => $('backupFile').click());
+$('backupFile').addEventListener('change', async (event) => {
+  const file = event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  try {
+    if (file.size > 10 * 1024 * 1024) throw new Error('Backup files must be smaller than 10 MB.');
+    const settings = FabBackup.parse(await file.text());
+    await restoreBackup(() => FabStorage.restoreFile(settings),
+      settings.blockedSellers.length + ' sellers, ' + settings.blockedKeywords.length + ' keywords');
+  } catch (error) {
+    showError('Could not restore this file. ' + error.message);
+  }
 });
 
 // Ask the active Fab tab which seller its page belongs to

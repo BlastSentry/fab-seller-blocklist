@@ -18,6 +18,20 @@ Open the extension's toolbar icon. Add/remove sellers, block keywords, or import
 
 Lists stay in this browser; use export/import to move them. Existing lists migrate automatically.
 
+Open **Backups & recovery** in the toolbar popup to download a JSON backup or
+restore a downloaded file. The backup includes sellers, keywords, and the reload
+preference. Keep a copy outside the browser (for example in your usual backed-up
+folder); it can be restored after reinstalling the extension or on another computer.
+
+The extension also saves a restore point before each list or settings change,
+including **Clear all** and restores. It keeps up to 10 previous versions, trimming
+older versions when the history exceeds about 2 MB. Restoring replaces your list
+and settings after confirmation; the replaced list becomes a restore point too.
+Normal updates and reloads preserve local data. Uninstalling the extension or
+losing the browser profile removes both the list and its local restore points,
+so keep a downloaded backup for protection against those cases. File backups are
+downloaded on request; nothing is uploaded to a cloud service automatically.
+
 ![Seller and keyword controls in the toolbar popup](Toolbar.jpg)
 
 ## Install

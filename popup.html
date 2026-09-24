@@ -22,6 +22,11 @@
   .empty { padding: 12px; color: #888; text-align: center; justify-content: center; }
   .footer { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
   .footer button { flex: 1; font-size: 12px; }
+  details { margin-top: 12px; border-top: 1px solid #333; padding-top: 10px; }
+  summary { cursor: pointer; }
+  #backupList { margin-top: 8px; }
+  #backupList li { gap: 8px; }
+  #backupStatus { color: #bbb; }
   #current { margin-bottom: 10px; padding: 8px; background: #26262c; border-radius: 4px; display: none; }
   #current.show { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .muted { color: #999; font-size: 11px; }
@@ -69,6 +74,20 @@
     <button id="ioCancel">Cancel</button>
   </div>
 
+  <details id="backups">
+    <summary>Backups &amp; recovery</summary>
+    <p class="muted">Up to 10 previous versions are saved automatically when you change your list or settings. These are removed if you uninstall the extension.</p>
+    <div class="footer">
+      <button id="downloadBackup">Download backup</button>
+      <button id="restoreFile">Restore from file</button>
+    </div>
+    <input id="backupFile" type="file" accept=".json,application/json" hidden>
+    <p class="muted">Keep a downloaded backup somewhere safe to recover after reinstalling or losing your browser profile.</p>
+    <p id="backupStatus" role="status" aria-live="polite" class="muted"></p>
+    <ul id="backupList" aria-label="Previous versions"></ul>
+  </details>
+
+  <script src="backup.js"></script>
   <script src="storage.js"></script>
   <script src="popup.js"></script>
 </body>
